@@ -1,3 +1,3 @@
 <?php
-require_once '../lib/classes/paraglide.php';
+require_once '../paraglide.php';
 Paraglide::load(LOCATION);
