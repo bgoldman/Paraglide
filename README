@@ -1,0 +1,8 @@
+Paraglide is a minimalist Model-View-Controller (MVC) framework for PHP5.
+
+Models are handled by Paragon, an Object Relational Mapper (ORM).
+Views are handled by PHP itself, and rendered with a simple method from a controller which passes variables.
+Controllers are regular classes that follow a defined convention for naming methods.
+
+Paraglide handles routing, hooks, configuration, URLs, and some helper methods.
+Paraglide provides conventions for keeping your application organized.
