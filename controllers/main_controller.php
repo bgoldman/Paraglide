@@ -4,6 +4,6 @@ class MainController {
 		$data = array(
 			'message' => 'Hello world!'
 		);
-		Web::render_view('main/index', $data);
+		Paraglide::render_view('main/index', $data);
 	}
 }
