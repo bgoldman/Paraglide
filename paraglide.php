@@ -28,6 +28,7 @@ class Paraglide {
 	public static $layout = null;
 	public static $nested_dir = '';
 	public static $request_type = null;
+	public static $wrapper = null;
 	
 	private static function _execute_hook($source = null, $hook) {
 		if ($source == 'file') {
@@ -72,24 +73,25 @@ class Paraglide {
 	
 	private function _render() {
 		$master_view = 'layout';
-		$modal_view = 'modal.layout';
+		$modal_view = self::$nested_dir . 'modal.layout';
 		$nested_view = self::$nested_dir . 'layout';
 		$controller_view = self::$nested_dir . self::$controller . '/layout';
 		$controller_wrapper = self::$nested_dir . self::$controller . '/wrapper';
 		$local_view = self::$nested_dir . self::$controller . '/' . self::$action . '.layout';
 		$local_wrapper = self::$nested_dir . self::$controller . '/' . self::$action . '.wrapper';
 
-		if (file_exists(APP_PATH . 'views/' . $local_wrapper . '.tpl')) {
+		if (!empty(self::$wrapper) && file_exists(APP_PATH . 'views/' . self::$wrapper . '.tpl')) {
+			$wrapper = self::$wrapper;
+		} elseif (file_exists(APP_PATH . 'views/' . $local_wrapper . '.tpl')) {
 			$wrapper = $local_wrapper;
-		}
-		else if (file_exists(APP_PATH . 'views/' . $controller_wrapper . '.tpl')) {
+		} else if (file_exists(APP_PATH . 'views/' . $controller_wrapper . '.tpl')) {
 			$wrapper = $controller_wrapper;
 		}
 
-		if (!empty($_GET['modal'])) {
-			$view = $modal_view;
-		} elseif (!empty(self::$layout) && file_exists(APP_PATH . 'views/' . self::$layout . '.tpl')) {
+		if (!empty(self::$layout) && file_exists(APP_PATH . 'views/' . self::$layout . '.tpl')) {
 			$view = self::$layout;
+		} elseif (!empty($_GET['modal'])) {
+			$view = $modal_view;
 		} elseif (file_exists(APP_PATH . 'views/' . $local_view . '.tpl')) {
 			$view = $local_view;
 		} elseif (file_exists(APP_PATH . 'views/' . $controller_view . '.tpl')) {
@@ -401,7 +403,6 @@ class Paraglide {
 		if (!empty($location_parts[1])) {
 			$query_string = $location_parts[1];
 			$query_string_parts = explode('&', $query_string);
-			$_GET = array();
 			
 			foreach ($query_string_parts as $part) {
 				$pair = explode('=', $part);
