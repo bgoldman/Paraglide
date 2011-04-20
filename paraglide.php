@@ -13,7 +13,7 @@ class Paraglide {
 	private static $_controller_instance = null;
 	private static $_request_types = array(
 		'html' => 'text/html',
-		'js' => 'text/javascript',
+		'json' => 'text/javascript',
 		'rss' => 'application/rss+xml',
 		'txt' => 'text/plain',
 		'xml' => 'text/xml',
@@ -21,10 +21,6 @@ class Paraglide {
 	
 	public static $action = null;
 	public static $controller = null;
-	public static $included_scripts = array();
-	public static $included_scripts_first = array();
-	public static $included_styles = array();
-	public static $included_styles_first = array();
 	public static $layout = null;
 	public static $nested_dir = '';
 	public static $request_type = null;
@@ -50,11 +46,11 @@ class Paraglide {
 		}
 	}
 
-	private function _inflect_camelize($word) {
+	private static function _inflect_camelize($word) {
 		return str_replace(' ', '', ucwords(str_replace(array('_', ' '), ' ', $word)));
 	}
 	
-	private function _inflect_underscore($word) {
+	private static function _inflect_underscore($word) {
 		$return = '';
 		
 		for ($i = 0; $i < strlen($word); $i++) {
@@ -71,7 +67,7 @@ class Paraglide {
 		return $return;
 	}
 	
-	private function _render() {
+	private static function _render() {
 		$master_view = 'layout';
 		$modal_view = self::$nested_dir . 'modal.layout';
 		$nested_view = self::$nested_dir . 'layout';
@@ -112,8 +108,10 @@ class Paraglide {
 		self::$_done_loading = true;
 	}
 	
-	private function _set_cache() {
-		if (empty($GLOBALS['config']['cache'])) return;
+	private static function _set_cache() {
+		if (empty($GLOBALS['config']['cache'])) {
+			return;
+		}
 		
 		if (empty($GLOBALS['config']['cache'][ENVIRONMENT])) {
 			self::error('Cache config not found for environment \'' . ENVIRONMENT . '\' in <strong>cache.cfg</strong>');
@@ -145,7 +143,7 @@ class Paraglide {
 		}
 	}
 	
-	private function _set_config_and_environment() {
+	private static function _set_config_and_environment() {
 		// set the main config first, because the environment relies on options in this config
 		$GLOBALS['config'] = array();
 		$GLOBALS['config']['app'] = self::parse_config('app');
@@ -167,7 +165,7 @@ class Paraglide {
 		}
 	}
 	
-	private function _set_constants() {
+	private static function _set_constants() {
 		if (empty($_SERVER['REQUEST_URI'])) {
 			$_SERVER['REQUEST_URI'] = '/';
 		}
@@ -200,7 +198,7 @@ class Paraglide {
 		$location = $_SERVER['REQUEST_URI'];
 		if (strpos($location, '?') != false) $location = substr($location, 0, strpos($location, '?'));
 		if (substr($location, 0, strlen(SITE_FILENAME)) == SITE_FILENAME) $location = substr($location, strlen(SITE_FILENAME));
-		if ($location == false) $location = '';
+		if ($location === false) $location = '';
 		if (substr($location, 0, strlen(SITE_ROOT)) == SITE_ROOT) $location = substr($location, strlen(SITE_ROOT));
 		if (substr($location, 0, 1) == '/') $location = substr($location, 1);
 		define('LOCATION', $location);
@@ -214,8 +212,11 @@ class Paraglide {
 		define('SITE_URL', $uri);
 	}
 	
-	private function _set_database() {
-		if (empty($GLOBALS['config']['database'])) return;
+	private static function _set_database() {
+		if (empty($GLOBALS['config']['database'])) {
+			return;
+		}
+		
 		$GLOBALS['databases'] = array();
 		
 		$configs = array();
@@ -297,7 +298,7 @@ class Paraglide {
 		$GLOBALS['database'] = reset($GLOBALS['databases']);
 	}
 
-	private function _set_environment() {
+	private static function _set_environment() {
 		if (empty($_SERVER['REQUEST_URI'])) $_SERVER['REQUEST_URI'] = '';
 		if (empty($_SERVER['HTTP_HOST'])) $_SERVER['HTTP_HOST'] = 'localhost';
 		$server = strtolower($_SERVER['HTTP_HOST']);
@@ -335,19 +336,19 @@ class Paraglide {
 		error_reporting(ENVIRONMENT == 'live' ? 0 : E_ALL);
 	}
 	
-	private function _to_output_array($data) {
+	private static function _to_output_array($data) {
 		foreach ($data as $key => $value) {
 			if (is_array($value)) {
 				$data[$key] = self::_to_output_array($value);
-			} elseif (is_object($value) && method_exists($value, 'to_output_array')) {
-				$data[$key] = $value->to_output_array();
+			} elseif (is_object($value) && method_exists($value, '_toArray')) {
+				$data[$key] = $value->_toArray();
 			}
 		}
 		
 		return $data;
 	}
 
-	public function error($message) {
+	public static function error($message) {
 		if (!file_exists(APP_PATH . 'views/framework_error.tpl')) {
 			die($message);
 		}
@@ -355,36 +356,8 @@ class Paraglide {
 		require_once APP_PATH . 'views/framework_error.tpl';
 		die;
 	}
-
-	public function include_script($script) {
-		$script = strtolower($script);
-		if (in_array($script, self::$included_scripts)) return;
-		if (!file_exists(SITE_PATH . 'scripts/' . $script . '.js')) return;
-		self::$included_scripts[] = $script;
-	}
 	
-	public function include_script_first($script) {
-		$script = strtolower($script);
-		if (in_array($script, self::$included_scripts_first)) return;
-		if (!file_exists(SITE_PATH . 'scripts/' . $script . '.js')) return;
-		self::$included_scripts_first[] = $script;
-	}
-	
-	public function include_style($style) {
-		$style = strtolower($style);
-		if (in_array($style, self::$included_styles)) return;
-		if (!file_exists(SITE_PATH . 'styles/' . $style . '.css')) return;
-		self::$included_styles[] = $style;
-	}
-	
-	public function include_style_first($style) {
-		$style = strtolower($style);
-		if (in_array($style, self::$included_styles_first)) return;
-		if (!file_exists(SITE_PATH . 'styles/' . $style . '.css')) return;
-		self::$included_styles_first[] = $style;
-	}
-	
-	public function init() {
+	public static function init() {
 		self::_set_constants();
 		self::_set_config_and_environment();
 		self::_set_database();
@@ -393,7 +366,7 @@ class Paraglide {
 		$GLOBALS['data'] = array();
 	}
 	
-	public function load($location) {
+	public static function load($location) {
 		// fix the location
 		if (strlen($location) > 0 && substr($location, 0, 1) == '/') $location = substr($location, 1);
 	
@@ -404,6 +377,7 @@ class Paraglide {
 		if (!empty($location_parts[1])) {
 			$query_string = $location_parts[1];
 			$query_string_parts = explode('&', $query_string);
+			$_GET = array();
 			
 			foreach ($query_string_parts as $part) {
 				$pair = explode('=', $part);
@@ -548,13 +522,18 @@ class Paraglide {
 		self::_render();
 	}
 	
-	public function load_classes($classes) {
-		if (empty($classes)) return;
+	public static function load_classes($classes) {
+		if (empty($classes)) {
+			return;
+		}
+		
 		self::load_files('class', 'lib/classes', $classes);
 	}
 
-	public function load_files($type, $dir, $files) {
-		if (empty($files) || !is_array($files)) return;
+	public static function load_files($type, $dir, $files) {
+		if (empty($files) || !is_array($files)) {
+			return;
+		}
 
 		foreach ($files as $file) {
 			$filename = self::_inflect_underscore($file);
@@ -569,17 +548,23 @@ class Paraglide {
 		}
 	}
 
-	public function load_helpers($helpers) {
-		if (empty($helpers)) return;
+	public static function load_helpers($helpers) {
+		if (empty($helpers)) {
+			return;
+		}
+		
 		self::load_files('helper', 'lib/helpers', $helpers);
 	}
 
-	public function load_models($models) {
-		if (empty($models)) return;
+	public static function load_models($models) {
+		if (empty($models)) {
+			return;
+		}
+		
 		self::load_files('model', 'models', $models);
 	}
 
-	public function long_url($controller = null, $action = null, $params = null, $query_string = null, $ssl = false) {
+	public static function long_url($controller = null, $action = null, $params = null, $query_string = null, $ssl = false) {
 		$url = self::url($controller, $action, $params, $query_string, $ssl);
 		if (substr($url, 0, 7) == 'http://') return $url;
 		if (substr($url, 0, 8) == 'https://') return $url;
@@ -587,7 +572,7 @@ class Paraglide {
 		return $prefix . '://' . $_SERVER['HTTP_HOST'] . $url;
 	}
 	
-	public function parse_config($file, $ignore_errors = false) {
+	public static function parse_config($file, $ignore_errors = false) {
 		$local_filename = APP_PATH . 'config/local/' . $file . '.cfg';
 		if (file_exists($local_filename)) $filename = $local_filename;
 		
@@ -608,7 +593,7 @@ class Paraglide {
 		return parse_ini_file($filename, true);
 	}
 
-	public function query_string($params) {
+	public static function query_string($params) {
 		if (empty($params) || !is_array($params)) {
 			return '';
 		}
@@ -619,7 +604,7 @@ class Paraglide {
 		return $string;
 	}
 
-	public function redirect($controller = null, $action = null, $params = null, $query_string = null, $ssl = false) {
+	public static function redirect($controller = null, $action = null, $params = null, $query_string = null, $ssl = false) {
 		if (self::$request_type != 'html') {
 			$url = $controller;
 			
@@ -655,13 +640,13 @@ class Paraglide {
 		self::redirect_to($url);
 	}
 
-	public function redirect_to($url) {
+	public static function redirect_to($url) {
 		header('Location: ' . $url);
 		die;
 	}
 
-	public function render_view($_view, $_data = null, $_buffer = false) {
-		if (!$_buffer && self::$request_type == 'js') {
+	public static function render_view($_view, $_data = null, $_buffer = false) {
+		if (!$_buffer && self::$request_type == 'json') {
 			$_data = self::_to_output_array($_data);
 			$js = json_encode($_data);
 			if (!empty($_GET['jsonp'])) $js = $_GET['jsonp'] . '(' . $js . ')';
@@ -695,21 +680,37 @@ class Paraglide {
 		}
 	}
 
-	public function require_not_ssl() {
-		if (empty($_SERVER['HTTPS'])) return;
+	public static function require_not_ssl() {
+		if (empty($_SERVER['HTTPS'])) {
+			return;
+		}
+		 
 		$host = $_SERVER['HTTP_HOST'];
 		$url = $_SERVER['REQUEST_URI'];
 		self::redirect_to('http://' . $host . $url);
     }
+    
+	public static function require_json() {
+		if (self::$request_type == 'json') {
+			return;
+		}
+		
+		$url = LOCATION . '.json';
+		if (!empty($_GET)) $url .= self::_query_string($_GET);
+		self::redirect_to($url);
+	}
 
-	public function require_ssl() {
-		if (!empty($_SERVER['HTTPS'])) return;
+	public static function require_ssl() {
+		if (!empty($_SERVER['HTTPS'])) {
+			return;
+		}
+		
 		$host = $_SERVER['HTTP_HOST'];
 		$url = $_SERVER['REQUEST_URI'];
 		self::redirect_to('https://' . $host . $url);
 	}
 
-	public function url($controller = null, $action = null, $params = null, $query_string = null, $ssl = false) {
+	public static function url($controller = null, $action = null, $params = null, $query_string = null, $ssl = false) {
 		if ($_SERVER['SERVER_PORT'] == 443 && $ssl == false) {
 			$prefix = 'http://' . $_SERVER['HTTP_HOST'];
 		} elseif ($_SERVER['SERVER_PORT'] != 443 && $ssl == true) {

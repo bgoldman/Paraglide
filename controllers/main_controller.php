@@ -1,9 +1,8 @@
 <?php
 class MainController {
 	public function index() {
-		$data = array(
+		Paraglide::render_view('main/index', array(
 			'message' => 'Hello world!'
-		);
-		Paraglide::render_view('main/index', $data);
+		));
 	}
 }
