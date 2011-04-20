@@ -1,7 +1,7 @@
 <?php
 /*
 paraglide.php
-Copyright (c) 2010 Brandon Goldman
+Copyright (c) 2011 Brandon Goldman
 Released under the MIT License.
 */
 
@@ -138,7 +138,9 @@ class Paraglide {
 		$servers = explode(',', $c['servers']);
 		
 		foreach ($servers as $key => $server) {
-			list($host, $port) = explode(':', $server);
+			$server_parts = explode(':', $server);
+			$host = $server_parts[0];
+			$port = !empty($server_parts[1]) ? $server_parts[1] : null;
 			$GLOBALS['cache']->addServer($host, $port, false);
 		}
 	}
@@ -191,7 +193,7 @@ class Paraglide {
 		
 		// SITE_FILENAME is the path and real filename of this application relative to the domain, with leading and trailing slashes
 		// example: for http://www.example.com/shop/index[.php]/categories/5?size=medium, SITE_FILENAME is /shop/index.php/
-		define('SITE_FILENAME', substr($_SERVER['SCRIPT_FILENAME'], strlen($_SERVER['DOCUMENT_ROOT']) - 1));
+		define('SITE_FILENAME', substr($_SERVER['SCRIPT_FILENAME'], strlen($_SERVER['DOCUMENT_ROOT'])));
 		
 		// LOCATION is this request's URL relative to SITE_ROOT, excluding the query string, without leading or trailing slashes
 		// example: for http://www.example.com/shop/categories/5?size=medium, LOCATION is categories/5
@@ -201,7 +203,6 @@ class Paraglide {
 		if ($location == false) $location = '';
 		if (substr($location, 0, strlen(SITE_ROOT)) == SITE_ROOT) $location = substr($location, strlen(SITE_ROOT));
 		if (substr($location, 0, 1) == '/') $location = substr($location, 1);
-		if ($location === false) $location = '';
 		define('LOCATION', $location);
 		
 		// SITE_URL is path and accessed filename of this application relative to the domain, with leading and trailing slashes
@@ -608,9 +609,12 @@ class Paraglide {
 	}
 
 	public function query_string($params) {
-		if (empty($params) || !is_array($params)) return '';
+		if (empty($params) || !is_array($params)) {
+			return '';
+		}
+		
 		$parts = array();
-		foreach ($params as $key => $val) $parts[] = $key . '=' . $val;
+		foreach ($params as $key => $val) $parts[] = urlencode($key) . '=' . urlencode($val);
 		$string = '?' . implode('&', $parts);
 		return $string;
 	}
@@ -739,10 +743,12 @@ class Paraglide {
 		if (is_array($params)) $params = implode('/', $params);
 		if ($params != '') $url .= '/' . $params;
 
-		if (is_array($query_string)) $query_string = self::query_string($query_string);
-		if ($query_string{0} != '?') $query_string = '?' . $query_string;
-		if (strlen($query_string) == 1) $query_string = '';
-		$url .= $query_string;
+		if (!empty($query_string)) {
+			if (is_array($query_string)) $query_string = self::query_string($query_string);
+			if ($query_string{0} != '?') $query_string = '?' . $query_string;
+			if (strlen($query_string) == 1) $query_string = '';
+			$url .= $query_string;
+		}
 		
 		return $url;
 	}
