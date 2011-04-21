@@ -502,14 +502,6 @@ class Paraglide {
 			ob_end_flush(); // turn off output buffering so it's not nested
 			return;
 		}
-		
-		// check for any script helpers
-		$script_helper_file = 'helpers/' . self::$nested_dir . self::$controller;
-		self::include_script($script_helper_file);
-
-		// check for any style helpers
-		$style_helper_file = 'helpers/' . self::$nested_dir . self::$controller;
-		self::include_style($style_helper_file);
 
 		// get the content
 		self::$_data['PAGE_CONTENT'] = ob_get_clean();
