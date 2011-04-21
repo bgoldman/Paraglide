@@ -340,8 +340,8 @@ class Paraglide {
 		foreach ($data as $key => $value) {
 			if (is_array($value)) {
 				$data[$key] = self::_to_output_array($value);
-			} elseif (is_object($value) && method_exists($value, '_toArray')) {
-				$data[$key] = $value->_toArray();
+			} elseif (is_object($value) && method_exists($value, '__toArray')) {
+				$data[$key] = $value->__toArray();
 			}
 		}
 		
