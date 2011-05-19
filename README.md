@@ -17,20 +17,25 @@ When using Paraglide, we recommend downloading, not cloning.
 By cloning Paraglide, you inherit the git history and are modifying Paraglide.  
 By downloading Paraglide, you can start fresh with a new git history for your project.
 
-Download a zip file of the skeleton project  
+Download a zip file of the skeleton project
+
     $ wget --no-check-certificate https://github.com/bgoldman/Paraglide/zipball/master -O my-project.zip
 
-Unzip the project  
+Unzip the project
+
     $ unzip my-project.zip
 
 This will unzip the project into a directory named something like bgoldman-Paraglide-760787b  
-Rename the project directory to my-project (or whatever your project is called)  
+Rename the project directory to my-project (or whatever your project is called)
+
     $ mv bgoldman-Paraglide-760787b my-project
 
-Move into the project directory  
+Move into the project directory
+
     $ cd my-project
 
-Init a new git repo, add all the files, and commit  
+Init a new git repo, add all the files, and commit
+
     $ git init
     $ git add .
     $ git commit -m 'first commit'
@@ -47,20 +52,25 @@ Delete database.cfg as well
 
 Now we're ready to install Paragon, the official ORM of Paraglide  
 If you don't want to use Paragon, delete or uncomment the lines in lib/hooks.php  
-Move into the paragon directory  
+Move into the paragon directory
+
     $ cd lib/classes/paragon
 
-Download a zip file of Paragon  
+Download a zip file of Paragon
+
     $ wget --no-check-certificate https://github.com/bgoldman/Paragon/zipball/master -O paragon.zip
 
-Unzip Paragon  
+Unzip Paragon
+
     $ unzip paragon.zip
 
 This will unzip Paragon into a directory named something like bgoldman-Paragon-2775825  
-Move all the files inside this directory into the current directory  
+Move all the files inside this directory into the current directory
+
     $ mv -rf bgoldman-Paragon-2775825/* .
 
-Remove the empty bgoldman-Paragon-2775825 directory and the paragon zip file  
+Remove the empty bgoldman-Paragon-2775825 directory and the paragon zip file
+
     $ rm -r bgoldman-Paragon-2775825 paragon.zip
 
 Now you need to make the public directory in your new project web-accessible  
@@ -72,7 +82,8 @@ If you're using Apache, here are two options:
 2) Symlink your existing document root to my-project/public  
 This is my preferred way because it leaves the existing web server configuration intact  
 Many web servers use the public_html or www directories as your document root  
-All you need to do is remove these directories (or rename them), and then do this to symlink to your project's public directory  
+All you need to do is remove these directories (or rename them), and then do this to symlink to your project's public directory
+
     $ ln -s my-project/public/ public_html
 
 Make sure public/.htaccess is there  
