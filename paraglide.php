@@ -2,10 +2,13 @@
 /*
 paraglide.php
 Copyright (c) 2011 Brandon Goldman
+Modifications by Kenneth Ballenegger
 Released under the MIT License.
 */
 
 Paraglide::init();
+
+class ParaglideExitException extends Exception {}
 
 class Paraglide {
 	private static $_data = array();
@@ -17,7 +20,9 @@ class Paraglide {
 		'rss' => 'application/rss+xml',
 		'txt' => 'text/plain',
 		'xml' => 'text/xml',
+		'csv' => 'text/csv'
 	);
+	private static $_skip_layout = false;
 	
 	public static $action = null;
 	public static $controller = null;
@@ -68,19 +73,23 @@ class Paraglide {
 	}
 	
 	private static function _render() {
+		if (self::$_skip_layout) {
+			echo self::$_data['PAGE_CONTENT'];
+			return;
+		}
+		
 		$master_view = 'layout';
-		$modal_view = self::$nested_dir . 'modal.layout';
+		$modal_view = 'modal.layout';
 		$nested_view = self::$nested_dir . 'layout';
 		$controller_view = self::$nested_dir . self::$controller . '/layout';
 		$controller_wrapper = self::$nested_dir . self::$controller . '/wrapper';
 		$local_view = self::$nested_dir . self::$controller . '/' . self::$action . '.layout';
 		$local_wrapper = self::$nested_dir . self::$controller . '/' . self::$action . '.wrapper';
-
-		if (!empty(self::$wrapper) && file_exists(APP_PATH . 'views/' . self::$wrapper . '.tpl')) {
-			$wrapper = self::$wrapper;
-		} elseif (file_exists(APP_PATH . 'views/' . $local_wrapper . '.tpl')) {
+			
+		if (file_exists(APP_PATH . 'views/' . $local_wrapper . '.tpl')) {
 			$wrapper = $local_wrapper;
-		} else if (file_exists(APP_PATH . 'views/' . $controller_wrapper . '.tpl')) {
+		}
+		else if (file_exists(APP_PATH . 'views/' . $controller_wrapper . '.tpl')) {
 			$wrapper = $controller_wrapper;
 		}
 
@@ -97,7 +106,7 @@ class Paraglide {
 		} else {
 			$view = $master_view;
 		}
-
+		
 		if (!empty($wrapper)) {
 			ob_start();
 			self::render_view($wrapper);
@@ -155,6 +164,7 @@ class Paraglide {
 		$GLOBALS['config']['cache'] = self::parse_config('cache', true);
 		$GLOBALS['config']['database'] = self::parse_config('database', true);
 		$GLOBALS['config']['mail'] = self::parse_config('mail', true);
+		$GLOBALS['config']['memcache'] = self::parse_config('memcache', true);
 		
 		// DEFAULT_CONTROLLER is the controller your application executes if the one being accessed doesn't exist or one isn't provided (it's usually main)
 		define('DEFAULT_CONTROLLER', $GLOBALS['config']['app']['main']['default_controller']);
@@ -213,6 +223,7 @@ class Paraglide {
 	}
 	
 	private static function _set_database() {
+		return false; // assumes mysql, unnecessary
 		if (empty($GLOBALS['config']['database'])) {
 			return;
 		}
@@ -311,25 +322,29 @@ class Paraglide {
 		);
 		
 		foreach ($confs as $const => $conf) {
-			foreach ($conf as $env => $domains) {
-				$domains_array = explode(',', $domains);
-			
-				foreach ($domains_array as $domain) {
-					$domain = trim($domain);
-					$domain = strtolower($domain);
-					$domain = str_replace('.', '\.', $domain);
-					$domain = str_replace('*', '.+', $domain);
-					if (!preg_match('/' . $domain . '/', $server)) continue;
-					define($const, $env);
-					break;
+			if (getenv('PARAGLIDE_'.$const)) {
+				define($const, getenv('PARAGLIDE_'.$const));
+			} else {
+				foreach ($conf as $env => $domains) {
+					$domains_array = explode(',', $domains);
+
+					foreach ($domains_array as $domain) {
+						$domain = trim($domain);
+						$domain = strtolower($domain);
+						$domain = str_replace('.', '\.', $domain);
+						$domain = str_replace('*', '.+', $domain);
+						if (!preg_match('/' . $domain . '/', $server)) continue;
+						define($const, $env);
+						break;
+					}
+
+					if (defined($const)) break;
 				}
-		
-				if (defined($const)) break;
-			}
-			
-			if (!defined($const)) {
-				$const_lower = strtolower($const);
-				self::error('No ' . $const_lower . ' found for \'' . $server . '\' in <strong>config/app.cfg</strong>');
+
+				if (!defined($const)) {
+					$const_lower = strtolower($const);
+					self::error('No ' . $const_lower . ' found for \'' . $server . '\' in <strong>config/app.cfg</strong>');
+				}
 			}
 		}
 		
@@ -337,13 +352,11 @@ class Paraglide {
 	}
 	
 	private static function _to_output_array($data) {
-		foreach ($data as $key => $value) {
-			if (is_array($value)) {
-				$data[$key] = self::_to_output_array($value);
-			} elseif (is_object($value) && method_exists($value, '__toArray')) {
-				$data[$key] = $value->__toArray();
-			}
-		}
+		$function = function(&$item, $key) {
+			if (is_object($item) && method_exists($item, '__toArray'))
+				$item = $item->__toArray();
+		};
+		array_walk_recursive($data, $function);
 		
 		return $data;
 	}
@@ -476,6 +489,10 @@ class Paraglide {
 			$arguments = array_slice($arguments, 1);
 		}
 		
+		// FIX -- Weird hack that was making requests failing (Sean)
+		if (count($arguments) == 1 && empty($arguments[0]))
+			$arguments = array();
+		
 		foreach ($arguments as $key => $val) {
 			$arguments[$key] = urldecode($val);
 		}
@@ -495,7 +512,11 @@ class Paraglide {
 		ob_start();
 
 		// run the controller and generate the view
-		call_user_func_array(array(self::$_controller_instance, $function), $GLOBALS['arguments']);
+		try {
+			call_user_func_array(array(self::$_controller_instance, $function), $GLOBALS['arguments']);
+		} catch (ParaglideExitException $e) {
+			// do nothing
+		}
 		
 		// if the request was redirected, stop here
 		if (self::$_done_loading) {
@@ -642,7 +663,24 @@ class Paraglide {
 			$_data = self::_to_output_array($_data);
 			$js = json_encode($_data);
 			if (!empty($_GET['jsonp'])) $js = $_GET['jsonp'] . '(' . $js . ')';
-			die($js);
+			echo $js;
+			self::$_skip_layout = true;
+			return;
+		} if (!$_buffer && self::$request_type == 'csv') {
+			header('Content-type: text/csv');
+			$_data = self::_to_output_array($_data);
+			foreach ($_data as $line) {
+				if (!is_array($line))
+					continue;
+				$prefix = '';
+				foreach ($line as $item) {
+					echo $prefix.'"'.str_replace('"', '\"', $item).'"';
+					$prefix = ',';
+				}
+				echo "\n";
+			}
+			self::$_skip_layout = true;
+			return;
 		}
 	
 		if (!file_exists(APP_PATH . "views/{$_view}.tpl")) {
