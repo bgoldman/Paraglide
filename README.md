@@ -1,4 +1,6 @@
-== Introduction
+# Paraglide
+
+## Introduction
 
 Paraglide is a minimalist Model-View-Controller (MVC) framework for PHP5.
 
@@ -9,7 +11,7 @@ Controllers are regular classes that follow a defined convention for naming meth
 Paraglide handles routing, hooks, configuration, URLs, and some helper methods.
 Paraglide provides conventions for keeping your application organized.
 
-== Installation
+## Installation
 
 When using Paraglide, we recommend downloading, not cloning.
 By cloning Paraglide, you inherit the git history and are modifying Paraglide.
@@ -84,7 +86,7 @@ Now you can build out your models, views, and controllers
 If you're using models, be sure to create a models directory
 The views and controllers directory already exists
 
-== Directory Structure
+## Directory Structure
 
 / - Project root
 /config - All config files
@@ -102,3 +104,8 @@ The views and controllers directory already exists
 /views - All directories for views that belong to controllers, and files like layout.tpl
 /views/common - All common views that are re-used throughout the project, like pagination
 /views/$controller - Each controller gets its own views directory for controller-specific views
+
+## Support
+
+Please use github's issue tracker to submit support requests
+You can also email the developer at brandon dot goldman at gmail dot com
