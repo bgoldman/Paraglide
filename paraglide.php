@@ -741,9 +741,11 @@ class Paraglide {
 	}
 
 	public static function url($controller = null, $action = null, $params = null, $query_string = null, $ssl = false) {
-		if ($_SERVER['SERVER_PORT'] == 443 && $ssl == false) {
+        $server_port = (!empty($_SERVER['SERVER_PORT'])) ? $_SERVER['SERVER_PORT'] : '';
+        
+		if ($server_port == 443 && $ssl == false) {
 			$prefix = 'http://' . $_SERVER['HTTP_HOST'];
-		} elseif ($_SERVER['SERVER_PORT'] != 443 && $ssl == true) {
+		} elseif ($server_port != 443 && $ssl == true) {
 			$prefix = 'https://' . $_SERVER['HTTP_HOST'];
 		} else {
 			$prefix = '';
