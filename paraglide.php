@@ -117,23 +117,25 @@ class Paraglide {
 			self::error('Cache config not found for environment \'' . ENVIRONMENT . '\' in <strong>cache.cfg</strong>');
 		}
 		
-		$c = $GLOBALS['config']['cache'][ENVIRONMENT];
-		$default_class = 'Memcache';
-		$class = $default_class;
+		$config = $GLOBALS['config']['cache'][ENVIRONMENT];
+		$class = $config['class'];
 		
-		if (!empty($c['class']) && $c['class'] != $default_class) {
-			$class = $c['class'];
+		if (!empty($class) && !class_exists($class)) {
 			$filename = APP_PATH . 'lib/classes/' . self::_inflect_underscore($class) . '.php';
 
 			if (!file_exists($filename)) {
 				self::error('Cache class \'' . $class . '\' not found at <em>' . $filename . '</em> in <strong>cache.cfg</strong>');
 			}
+			
+			if (!class_exists($class)) {
+				self::error('Cache class \'' . $class . '\' not found in <em>' . $filename . '</em> in <strong>cache.cfg</strong>');
+			}
 
 			require_once $filename;
 		}
-
+		
 		$GLOBALS['cache'] = new $class();
-		$servers = explode(',', $c['servers']);
+		$servers = explode(',', $config['servers']);
 		
 		foreach ($servers as $key => $server) {
 			$server_parts = explode(':', $server);
@@ -172,11 +174,12 @@ class Paraglide {
 
 		// APP_PATH is the full server path to the directory of this application, with leading and trailing slashes
 		// example: for http://www.example.com/shop/index.php/categories/5?size=medium, APP_PATH is something like /home/example.com/
-		define('APP_PATH', dirname(__FILE__) . '/');
+		define('APP_PATH', realpath(dirname(__FILE__) . '/../../') . '/');
 
 		// SITE_PATH is the full server path to the directory of this application relative to the domain, with leading and trailing slashes
 		// example: for http://www.example.com/shop/index.php/categories/5?size=medium, SITE_PATH is something like /home/example.com/public_html/shop/
-		define('SITE_PATH', dirname($_SERVER['SCRIPT_FILENAME']) . '/');
+		$site_path = dirname($_SERVER['SCRIPT_FILENAME']) . '/';
+		define('SITE_PATH', realpath($site_path));
 		
 		// SITE_ROOT is the path of this application relative to the domain, with leading and trailing slashes
 		// example: for http://www.example.com/shop/index.php/categories/5?size=medium, SITE_ROOT is /shop/
@@ -260,17 +263,18 @@ class Paraglide {
 		}
 
 		foreach ($configs as $key => $key_configs) {
-			$default_class = 'mysqli';
-			
 			foreach ($key_configs as $config) {
-				$class = $default_class;
+				$class = $config['class'];
 
-				if (!empty($config['class']) && $config['class'] != $default_class) {
-					$class = $config['class'];
+				if (!empty($class) && !class_exists($class)) {
 					$filename = APP_PATH . 'lib/classes/' . self::_inflect_underscore($class) . '.php';
 			
 					if (!file_exists($filename)) {
 						self::error('Database class \'' . $class . '\' not found at <em>' . $filename . '</em> in <strong>database.cfg</strong>');
+					}
+					
+					if (!class_exists($class)) {
+						self::error('Database class \'' . $class . '\' not found in <em>' . $filename . '</em> in <strong>database.cfg</strong>');
 					}
 			
 					require_once $filename;
@@ -445,12 +449,9 @@ class Paraglide {
 		self::_execute_hook('file', 'preprocess');
 		
 		// init the controller
-		if (empty(self::$nested_dir)) {
-			$controller_file = 'controllers/' . self::$controller . '_controller.php';
-		} else {
-			$controller_file = 'controllers/' . self::$nested_dir . '/' . self::$controller . '_controller.php';
-		}
-
+		$controller_file = APP_PATH . 'controllers/';
+		if (!empty(self::$nested_dir)) $controller_file .= self::$nested_dir . '/';
+		$controller_file .= self::$controller . '_controller.php';
 		require_once $controller_file;
 		$controller_class = str_replace(' ', '', self::_inflect_camelize(self::$controller)) . 'Controller';
 
