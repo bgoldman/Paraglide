@@ -1,14 +1,13 @@
 <?php
 /*
 paraglide.php
-Copyright (c) 2011 Brandon Goldman
+Copyright (c) 2012 Brandon Goldman
 Released under the MIT License.
 */
 
 Paraglide::init();
 
 class Paraglide {
-	private static $_data = array();
 	private static $_done_loading = false;
 	private static $_controller_instance = null;
 	private static $_request_types = array(
@@ -21,6 +20,7 @@ class Paraglide {
 	
 	public static $action = null;
 	public static $controller = null;
+	public static $data = array();
 	public static $layout = null;
 	public static $nested_dir = '';
 	public static $request_type = null;
@@ -44,27 +44,6 @@ class Paraglide {
 				call_user_func(array(self::$_controller_instance, '_' . $hook));
 			}
 		}
-	}
-
-	private static function _inflect_camelize($word) {
-		return str_replace(' ', '', ucwords(str_replace(array('_', ' '), ' ', $word)));
-	}
-	
-	private static function _inflect_underscore($word) {
-		$return = '';
-		
-		for ($i = 0; $i < strlen($word); $i++) {
-			$letter = $word{$i};
-
-			if (strtolower($letter) !== $letter) {
-				if ($i != 0) $return .= '_';
-				$letter = strtolower($letter);
-			}
-
-			$return .= $letter;
-		}
-
-		return $return;
 	}
 	
 	private static function _render() {
@@ -101,7 +80,7 @@ class Paraglide {
 		if (!empty($wrapper)) {
 			ob_start();
 			self::render_view($wrapper);
-			self::$_data['PAGE_CONTENT'] = ob_get_clean();
+			self::$data['PAGE_CONTENT'] = ob_get_clean();
 		}
 
 		self::render_view($view);
@@ -114,27 +93,32 @@ class Paraglide {
 		}
 		
 		if (empty($GLOBALS['config']['cache'][ENVIRONMENT])) {
-			self::error('Cache config not found for environment \'' . ENVIRONMENT . '\' in <strong>cache.cfg</strong>');
+			return;
 		}
 		
 		$config = $GLOBALS['config']['cache'][ENVIRONMENT];
 		$class = $config['class'];
 		
 		if (!empty($class) && !class_exists($class)) {
-			$filename = APP_PATH . 'lib/classes/' . self::_inflect_underscore($class) . '.php';
+			$filename = APP_PATH . 'lib/classes/' . self::inflect_underscore($class) . '.php';
 
 			if (!file_exists($filename)) {
 				self::error('Cache class \'' . $class . '\' not found at <em>' . $filename . '</em> in <strong>cache.cfg</strong>');
 			}
 			
+			require_once $filename;
+			
 			if (!class_exists($class)) {
 				self::error('Cache class \'' . $class . '\' not found in <em>' . $filename . '</em> in <strong>cache.cfg</strong>');
 			}
-
-			require_once $filename;
 		}
 		
-		$GLOBALS['cache'] = new $class();
+		if (!empty($config['path'])) {
+			$GLOBALS['cache'] = new $class($config['path']);
+		} else {
+			$GLOBALS['cache'] = new $class();
+		}
+		
 		$servers = explode(',', $config['servers']);
 		
 		foreach ($servers as $key => $server) {
@@ -168,6 +152,14 @@ class Paraglide {
 	}
 	
 	private static function _set_constants() {
+		if (!empty($_SERVER['REDIRECT_URL'])) {
+			$_SERVER['REQUEST_URI'] = $_SERVER['REDIRECT_URL'];
+			
+			if (strpos($_SERVER['REQUEST_URI'], '?') === false && !empty($_SERVER['QUERY_STRING'])) {
+				$_SERVER['REQUEST_URI'] .= '?' . $_SERVER['QUERY_STRING'];
+			}
+		}
+		
 		if (empty($_SERVER['REQUEST_URI'])) {
 			$_SERVER['REQUEST_URI'] = '/';
 		}
@@ -178,8 +170,8 @@ class Paraglide {
 
 		// SITE_PATH is the full server path to the directory of this application relative to the domain, with leading and trailing slashes
 		// example: for http://www.example.com/shop/index.php/categories/5?size=medium, SITE_PATH is something like /home/example.com/public_html/shop/
-		$site_path = dirname($_SERVER['SCRIPT_FILENAME']) . '/';
-		define('SITE_PATH', realpath($site_path));
+		$site_path = realpath(dirname($_SERVER['SCRIPT_FILENAME'])) . '/';
+		define('SITE_PATH', $site_path);
 		
 		// SITE_ROOT is the path of this application relative to the domain, with leading and trailing slashes
 		// example: for http://www.example.com/shop/index.php/categories/5?size=medium, SITE_ROOT is /shop/
@@ -204,6 +196,7 @@ class Paraglide {
 		if ($location === false) $location = '';
 		if (substr($location, 0, strlen(SITE_ROOT)) == SITE_ROOT) $location = substr($location, strlen(SITE_ROOT));
 		if (substr($location, 0, 1) == '/') $location = substr($location, 1);
+		if ($location === false) $location = '';
 		define('LOCATION', $location);
 		
 		// SITE_URL is path and accessed filename of this application relative to the domain, with leading and trailing slashes
@@ -267,20 +260,21 @@ class Paraglide {
 				$class = $config['class'];
 
 				if (!empty($class) && !class_exists($class)) {
-					$filename = APP_PATH . 'lib/classes/' . self::_inflect_underscore($class) . '.php';
+					$filename = APP_PATH . 'lib/classes/' . self::inflect_underscore($class) . '.php';
 			
 					if (!file_exists($filename)) {
 						self::error('Database class \'' . $class . '\' not found at <em>' . $filename . '</em> in <strong>database.cfg</strong>');
 					}
 					
+					require_once $filename;
+					
 					if (!class_exists($class)) {
 						self::error('Database class \'' . $class . '\' not found in <em>' . $filename . '</em> in <strong>database.cfg</strong>');
 					}
-			
-					require_once $filename;
 				}
 	
-				$database = @new $class($config['server'], $config['username'], $config['password']);
+				$port = !empty($config['port']) ? $config['port'] : null;
+				$database = @new $class($config['server'], $config['username'], $config['password'], null, $port);
 		
 				if (!$database) {
 					continue;
@@ -315,6 +309,13 @@ class Paraglide {
 		);
 		
 		foreach ($confs as $const => $conf) {
+			$env_override = getenv('PARAGLIDE_' . $const);
+			
+			if ($env_override) {
+				define($const, $env_override);
+				continue;
+			}
+			
 			foreach ($conf as $env => $domains) {
 				$domains_array = explode(',', $domains);
 			
@@ -323,12 +324,18 @@ class Paraglide {
 					$domain = strtolower($domain);
 					$domain = str_replace('.', '\.', $domain);
 					$domain = str_replace('*', '.+', $domain);
-					if (!preg_match('/' . $domain . '/', $server)) continue;
+					
+					if (!preg_match('/' . $domain . '/', $server)) {
+						continue;
+					}
+					
 					define($const, $env);
 					break;
 				}
 		
-				if (defined($const)) break;
+				if (defined($const)) {
+					break;
+				}
 			}
 			
 			if (!defined($const)) {
@@ -341,11 +348,22 @@ class Paraglide {
 	}
 	
 	private static function _to_output_array($data) {
+		if (empty($data)) {
+			return null;
+		}
+		
 		foreach ($data as $key => $value) {
 			if (is_array($value)) {
+				if (count($value) == 0) {
+					continue;
+				}
+				
 				$data[$key] = self::_to_output_array($value);
 			} elseif (is_object($value) && method_exists($value, '__toArray')) {
 				$data[$key] = $value->__toArray();
+				$data[$key] = self::_to_output_array($data[$key]);
+			} elseif (is_string($value)) {
+				$data[$key] = utf8_encode($value);
 			}
 		}
 		
@@ -359,6 +377,27 @@ class Paraglide {
 		
 		require_once APP_PATH . 'views/framework_error.tpl';
 		die;
+	}
+	
+	public static function inflect_camelize($word) {
+		return str_replace(' ', '', ucwords(str_replace(array('_', ' '), ' ', $word)));
+	}
+	
+	public static function inflect_underscore($word) {
+		$return = '';
+		
+		for ($i = 0; $i < strlen($word); $i++) {
+			$letter = $word{$i};
+
+			if (strtolower($letter) !== $letter) {
+				if ($i != 0) $return .= '_';
+				$letter = strtolower($letter);
+			}
+
+			$return .= $letter;
+		}
+
+		return $return;
 	}
 	
 	public static function init() {
@@ -431,7 +470,10 @@ class Paraglide {
 			}
 			
 			if (!file_exists($try . $try_controller . '_controller.php')) {
-				if (count($nested_dirs) == 0) break;
+				if (count($nested_dirs) == 0) {
+					break;
+				}
+				
 				$nested_dirs = array_slice($nested_dirs, 0, -1);
 				continue;
 			}
@@ -453,7 +495,7 @@ class Paraglide {
 		if (!empty(self::$nested_dir)) $controller_file .= self::$nested_dir . '/';
 		$controller_file .= self::$controller . '_controller.php';
 		require_once $controller_file;
-		$controller_class = str_replace(' ', '', self::_inflect_camelize(self::$controller)) . 'Controller';
+		$controller_class = str_replace(' ', '', self::inflect_camelize(self::$controller)) . 'Controller';
 
 		if (!class_exists($controller_class)) {
 			self::error('Undefined controller class \'' . $controller_class . '\' in <strong>' . $controller_file . '</strong>');
@@ -505,7 +547,7 @@ class Paraglide {
 		}
 
 		// get the content
-		self::$_data['PAGE_CONTENT'] = ob_get_clean();
+		self::$data['PAGE_CONTENT'] = ob_get_clean();
 		
 		// run any postprocessing
 		self::_execute_hook('controller', 'postprocess');
@@ -529,7 +571,7 @@ class Paraglide {
 		}
 
 		foreach ($files as $file) {
-			$filename = self::_inflect_underscore($file);
+			$filename = self::inflect_underscore($file);
 			$path = APP_PATH . $dir . "/{$filename}.php";
 
 			if (!file_exists($path)) {
@@ -643,7 +685,10 @@ class Paraglide {
 			$_data = self::_to_output_array($_data);
 			$js = json_encode($_data);
 			if (!empty($_GET['jsonp'])) $js = $_GET['jsonp'] . '(' . $js . ')';
-			die($js);
+			header('Content-Type: application/json');
+			echo $js;
+			self::$_done_loading = true;
+			return;
 		}
 	
 		if (!file_exists(APP_PATH . "views/{$_view}.tpl")) {
@@ -655,10 +700,10 @@ class Paraglide {
 		}
 
 		if (!empty($_data) && is_array($_data)) {
-			self::$_data = array_merge(self::$_data, $_data);
+			self::$data = array_merge(self::$data, $_data);
 		}
 		
-		foreach (self::$_data as $key => $val) {
+		foreach (self::$data as $key => $val) {
 			$$key = $val;
 		}
 		
@@ -688,7 +733,7 @@ class Paraglide {
 			return;
 		}
 		
-		$url = LOCATION . '.json';
+		$url = SITE_ROOT . LOCATION . '.json';
 		if (!empty($_GET)) $url .= self::_query_string($_GET);
 		self::redirect_to($url);
 	}
@@ -745,5 +790,15 @@ class Paraglide {
 		}
 		
 		return $url;
+	}
+}
+
+class Controller {
+	public function render_view($view, $data, $buffer = false) {
+		$controller = get_class($this);
+		$controller_underscore = Paraglide::inflect_underscore($controller);
+		$prefix = substr($controller_underscore, 0, -strlen('_controller'));
+		$view = $prefix . '/' . $view;
+		return Paraglide::render_view($view, $data, $buffer);
 	}
 }
