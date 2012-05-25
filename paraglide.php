@@ -545,18 +545,18 @@ class Paraglide {
 		// run the controller and generate the view
 		call_user_func_array(array(self::$_controller_instance, $function), $GLOBALS['arguments']);
 		
-		// if the request was redirected, stop here
-		if (self::$_done_loading) {
-			ob_end_flush(); // turn off output buffering so it's not nested
-			return;
-		}
-
 		// get the content
 		self::$data['PAGE_CONTENT'] = ob_get_clean();
 		
 		// run any postprocessing
 		self::_execute_hook('controller', 'postprocess');
 		self::_execute_hook('file', 'postprocess');
+		
+		// if the request was redirected, stop here
+		if (self::$_done_loading) {
+			echo self::$data['PAGE_CONTENT'];
+			return;
+		}
 		
 		// render
 		self::_render();
