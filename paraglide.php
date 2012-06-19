@@ -4,7 +4,6 @@ paraglide.php
 Copyright (c) 2012 Brandon Goldman
 Released under the MIT License.
 */
-
 Paraglide::init();
 
 class Paraglide {
@@ -739,7 +738,7 @@ class Paraglide {
 		}
 		
 		$url = SITE_ROOT . LOCATION . '.json';
-		if (!empty($_GET)) $url .= self::_query_string($_GET);
+		if (!empty($_GET)) $url .= self::query_string($_GET);
 		self::redirect_to($url);
 	}
 
