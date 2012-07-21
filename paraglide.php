@@ -273,7 +273,8 @@ class Paraglide {
 				}
 	
 				$port = !empty($config['port']) ? $config['port'] : null;
-				$database = @new $class($config['server'], $config['username'], $config['password'], null, $port);
+				$socket = !empty($config['socket']) ? $config['socket'] : null;
+				$database = @new $class($config['server'], $config['username'], $config['password'], null, $port, $socket);
 		
 				if (!$database) {
 					continue;
