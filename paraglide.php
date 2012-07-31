@@ -4,6 +4,7 @@ paraglide.php
 Copyright (c) 2012 Brandon Goldman
 Released under the MIT License.
 */
+
 Paraglide::init();
 
 class Paraglide {
