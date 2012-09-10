@@ -23,6 +23,7 @@ class Paraglide {
 	public static $data = array();
 	public static $layout = null;
 	public static $nested_dir = '';
+	public static $params = array();
 	public static $request_type = null;
 	public static $wrapper = null;
 	
@@ -410,7 +411,7 @@ class Paraglide {
 		$GLOBALS['data'] = array();
 	}
 	
-	public static function load($location) {
+	public static function load($location, $skip_layout = false) {
 		// fix the location
 		if (strlen($location) > 0 && substr($location, 0, 1) == '/') $location = substr($location, 1);
 	
@@ -448,11 +449,10 @@ class Paraglide {
 		}
 	
 		// perform routing
-		$GLOBALS['arguments'] = array();
-		$arguments = explode('/', $location);
+		$params = explode('/', $location);
 		$nested_dirs = array();
 		
-		foreach ($arguments as $argument) {
+		foreach ($params as $argument) {
 			if (strlen($argument) > 0) $nested_dirs[] = $argument;
 		}
 		
@@ -466,7 +466,7 @@ class Paraglide {
 			foreach ($nested_dirs as $dir) $try .= str_replace('-', '_', $dir) . '/';
 			
 			if (is_dir($try)) {
-				$try_controller = str_replace('-', '_', isset($arguments[$i]) ? $arguments[$i] : DEFAULT_CONTROLLER);
+				$try_controller = str_replace('-', '_', isset($params[$i]) ? $params[$i] : DEFAULT_CONTROLLER);
 
 				if (!file_exists($try . $try_controller . '_controller.php')) {
 					$try_controller = str_replace('-', '_', DEFAULT_CONTROLLER);
@@ -485,7 +485,7 @@ class Paraglide {
 			}
 			
 			if (count($nested_dirs) > 0) self::$nested_dir = implode('/', $nested_dirs) . '/';
-			$arguments = array_slice($arguments, $i);
+			$params = array_slice($params, $i);
 			$controller = $try_controller;
 			break;
 		}
@@ -506,7 +506,7 @@ class Paraglide {
 		if (!class_exists($controller_class)) {
 			self::error('Undefined controller class \'' . $controller_class . '\' in <strong>' . $controller_file . '</strong>');
 		}
-
+		
 		self::$_controller_instance = new $controller_class();
 
 		// load the classes, helpers, and models
@@ -515,22 +515,21 @@ class Paraglide {
 		if (!empty(self::$_controller_instance->models)) self::load_models(self::$_controller_instance->models);
 		
 		// set the function
-		$action = !empty($arguments[0]) ? $arguments[0] : 'index';
+		$action = !empty($params[0]) ? $params[0] : 'index';
 		if (substr($action, 0, 1) == '_') $action = 'index';
 
 		$function = str_replace('-', '_', $action);
 		$function = method_exists(self::$_controller_instance, $function) ? $function : 'index';
 		
-		if (!empty($arguments[0]) && str_replace('-', '_', $arguments[0]) == $function) {
-			$arguments = array_slice($arguments, 1);
+		if (!empty($params[0]) && str_replace('-', '_', $params[0]) == $function) {
+			$params = array_slice($params, 1);
 		}
 		
-		foreach ($arguments as $key => $val) {
-			$arguments[$key] = urldecode($val);
+		foreach ($params as $key => $val) {
+			$params[$key] = urldecode($val);
 		}
 
-		$GLOBALS['arguments'] = $arguments;
-		
+		self::$params = $params;
 		self::$action = str_replace('_', '-', $function);
 
 		if (!method_exists(self::$_controller_instance, 'index')) {
@@ -544,7 +543,7 @@ class Paraglide {
 		ob_start();
 
 		// run the controller and generate the view
-		call_user_func_array(array(self::$_controller_instance, $function), $GLOBALS['arguments']);
+		call_user_func_array(array(self::$_controller_instance, $function), self::$params);
 		
 		// get the content
 		self::$data['PAGE_CONTENT'] = ob_get_clean();
@@ -553,8 +552,8 @@ class Paraglide {
 		self::_execute_hook('controller', 'postprocess');
 		self::_execute_hook('file', 'postprocess');
 		
-		// if the request was redirected, stop here
-		if (self::$_done_loading) {
+		// if the request was redirected or if we want to skip the layout, stop here
+		if (self::$_done_loading || $skip_layout) {
 			echo self::$data['PAGE_CONTENT'];
 			return;
 		}
@@ -640,7 +639,7 @@ class Paraglide {
 		}
 		
 		$parts = array();
-		foreach ($params as $key => $val) $parts[] = urlencode($key) . '=' . urlencode($val);
+		foreach ($params as $key => $val) $parts[] = $key . '=' . $val;
 		$string = '?' . implode('&', $parts);
 		return $string;
 	}
