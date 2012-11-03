@@ -824,7 +824,7 @@ class Controller {
 		return Paraglide::redirect($this->_slug, $action, $params, $query_string, $ssl);
 	}
 	
-	public function render_view($view, $data, $buffer = false) {
+	public function render($view, $data = array(), $buffer = false) {
 		return Paraglide::render_view($this->_slug . '/' . $view, $data, $buffer);
 	}
 	
