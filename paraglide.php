@@ -11,8 +11,10 @@ class Paraglide {
 	private static $_done_loading = false;
 	private static $_controller_instance = null;
 	private static $_request_types = array(
+		'csv' => 'text/csv',
 		'html' => 'text/html',
 		'json' => 'text/javascript',
+		'png' => 'image/png',
 		'rss' => 'application/rss+xml',
 		'txt' => 'text/plain',
 		'xml' => 'text/xml',
