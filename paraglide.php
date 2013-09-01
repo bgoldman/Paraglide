@@ -421,15 +421,15 @@ class Paraglide {
 		$location_parts = explode('?', $location, 2);
 		$location = $location_parts[0];
 
-		if (!empty($location_parts[1])) {
-			$query_string = $location_parts[1];
-			$query_string_parts = explode('&', $query_string);
-			$_GET = array();
-			
-			foreach ($query_string_parts as $part) {
-				$pair = explode('=', $part);
-				$_GET[$pair[0]] = isset($pair[1]) ? $pair[1] : null;
-			}
+		// recalculate $_GET
+		$query_string = $_SERVER['QUERY_STRING'];
+		if (!empty($location_parts[1])) $query_string = $location_parts[1];
+		$query_string_parts = explode('&', $query_string);
+		$_GET = array();
+		
+		foreach ($query_string_parts as $part) {
+			$pair = explode('=', $part);
+			$_GET[$pair[0]] = isset($pair[1]) ? $pair[1] : null;
 		}
 		
 		if (empty(self::$request_type)) {
