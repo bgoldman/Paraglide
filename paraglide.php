@@ -1,7 +1,7 @@
 <?php
 /*
 paraglide.php
-Copyright (c) 2012 Brandon Goldman
+Copyright (c) 2013 Brandon Goldman
 Released under the MIT License.
 */
 
