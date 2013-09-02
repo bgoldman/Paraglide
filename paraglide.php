@@ -429,7 +429,9 @@ class Paraglide {
 		
 		foreach ($query_string_parts as $part) {
 			$pair = explode('=', $part);
-			$_GET[$pair[0]] = isset($pair[1]) ? $pair[1] : null;
+			$key = urldecode($pair[0]);
+			$value = urldecode($pair[1]);
+			$_GET[$key] = isset($value) ? $value : null;
 		}
 		
 		if (empty(self::$request_type)) {
