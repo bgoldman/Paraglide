@@ -22,8 +22,12 @@ class Paraglide {
 	);
 	
 	public static $action = null;
+	public static $cache = null;
+	public static $config = array();
 	public static $controller = null;
 	public static $data = array();
+	public static $database = null;
+	public static $databases = array();
 	public static $layout = null;
 	public static $nested_dir = '';
 	public static $params = array();
@@ -92,15 +96,15 @@ class Paraglide {
 	}
 	
 	private static function _set_cache() {
-		if (empty($GLOBALS['config']['cache'])) {
+		if (empty(self::$config['cache'])) {
 			return;
 		}
 		
-		if (empty($GLOBALS['config']['cache'][ENVIRONMENT])) {
+		if (empty(self::$config['cache'][ENVIRONMENT])) {
 			return;
 		}
 		
-		$config = $GLOBALS['config']['cache'][ENVIRONMENT];
+		$config = self::$config['cache'][ENVIRONMENT];
 		$class = $config['class'];
 		
 		if (!empty($class) && !class_exists($class)) {
@@ -118,9 +122,9 @@ class Paraglide {
 		}
 		
 		if (!empty($config['path'])) {
-			$GLOBALS['cache'] = new $class($config['path']);
+			self::$cache = new $class($config['path']);
 		} else {
-			$GLOBALS['cache'] = new $class();
+			self::$cache = new $class();
 		}
 		
 		$servers = explode(',', $config['servers']);
@@ -129,25 +133,25 @@ class Paraglide {
 			$server_parts = explode(':', $server);
 			$host = $server_parts[0];
 			$port = !empty($server_parts[1]) ? $server_parts[1] : null;
-			$GLOBALS['cache']->addServer($host, $port, false);
+			self::$cache->addServer($host, $port, false);
 		}
 	}
 	
 	private static function _set_config_and_environment() {
 		// set the main config first, because the environment relies on options in this config
-		$GLOBALS['config'] = array();
-		$GLOBALS['config']['app'] = self::parse_config('app');
+		self::$config = array();
+		self::$config['app'] = self::parse_config('app');
 		
 		// set the environment
 		self::_set_environment();
 		
 		// set the other configs later, because they rely on the environment
-		$GLOBALS['config']['cache'] = self::parse_config('cache', true);
-		$GLOBALS['config']['database'] = self::parse_config('database', true);
-		$GLOBALS['config']['mail'] = self::parse_config('mail', true);
+		self::$config['cache'] = self::parse_config('cache', true);
+		self::$config['database'] = self::parse_config('database', true);
+		self::$config['mail'] = self::parse_config('mail', true);
 		
 		// DEFAULT_CONTROLLER is the controller your application executes if the one being accessed doesn't exist or one isn't provided (it's usually main)
-		define('DEFAULT_CONTROLLER', $GLOBALS['config']['app']['main']['default_controller']);
+		define('DEFAULT_CONTROLLER', self::$config['app']['main']['default_controller']);
 		
 		// make sure the default controller exists
 		if (!file_exists(APP_PATH . 'controllers/' . DEFAULT_CONTROLLER . '_controller.php')) {
@@ -213,15 +217,15 @@ class Paraglide {
 	}
 	
 	private static function _set_database() {
-		if (empty($GLOBALS['config']['database'])) {
+		if (empty(self::$config['database'])) {
 			return;
 		}
 		
-		$GLOBALS['databases'] = array();
+		self::$databases = array();
 		
 		$configs = array();
 		
-		foreach ($GLOBALS['config']['database'] as $key => $config) {
+		foreach (self::$config['database'] as $key => $config) {
 			if (
 				$key != ENVIRONMENT
 				&& substr($key, 0, strlen(ENVIRONMENT . '-')) != ENVIRONMENT . '-'
@@ -284,21 +288,21 @@ class Paraglide {
 				if (!$database) {
 					continue;
 				}
-		
+				
 				if (!$database->select_db($config['name'])) {
 					continue;
 				}
 
-				$GLOBALS['databases'][$key] = $database;
+				self::$databases[$key] = $database;
 				break;
 			}
 		}
 		
-		if (empty($GLOBALS['databases'])) {
+		if (empty(self::$databases)) {
 			self::error('Database config not found for environment \'' . ENVIRONMENT . '\' in <strong>database.cfg</strong>');
 		}
 
-		$GLOBALS['database'] = reset($GLOBALS['databases']);
+		self::$database = reset(self::$databases);
 	}
 
 	private static function _set_environment() {
@@ -306,8 +310,8 @@ class Paraglide {
 		if (empty($_SERVER['HTTP_HOST'])) $_SERVER['HTTP_HOST'] = 'localhost';
 		$server = strtolower($_SERVER['HTTP_HOST']);
 		
-		$environment_conf = !empty($GLOBALS['config']['app']['environments']) ? $GLOBALS['config']['app']['environments'] : array();
-		$deployment_conf = !empty($GLOBALS['config']['app']['deployments']) ? $GLOBALS['config']['app']['deployments'] : array('main' => $server);
+		$environment_conf = !empty(self::$config['app']['environments']) ? self::$config['app']['environments'] : array();
+		$deployment_conf = !empty(self::$config['app']['deployments']) ? self::$config['app']['deployments'] : array('main' => $server);
 		$confs = array(
 			'ENVIRONMENT' => $environment_conf,
 			'DEPLOYMENT' => $deployment_conf,
@@ -411,7 +415,6 @@ class Paraglide {
 		self::_set_database();
 		self::_set_cache();
 		self::_execute_hook('file', 'init');
-		$GLOBALS['data'] = array();
 	}
 	
 	public static function load($location, $skip_layout = false) {
@@ -703,10 +706,6 @@ class Paraglide {
 	
 		if (!file_exists(APP_PATH . "views/{$_view}.tpl")) {
 			self::error('View \'' . $_view . '\' not found at <strong>views/' . $_view . '.tpl</strong>');
-		}
-
-		foreach ($GLOBALS['data'] as $key => $val) {
-			$$key = $val;
 		}
 
 		if (!empty($_data) && is_array($_data)) {
